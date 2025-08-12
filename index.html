@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Number Conversion Service (SOAP API)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .converter {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h2 {
+            color: #333;
+            margin-top: 0;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            padding: 10px;
+            width: 100%;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        button {
+            flex: 1;
+            padding: 10px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #2980b9;
+        }
+        button.secondary {
+            background: #f44336;
+        }
+        button.secondary:hover {
+            background: #d32f2f;
+        }
+        #result {
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+            display: none;
+        }
+        .success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            display: block;
+        }
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            display: block;
+        }
+        .warning {
+            background: #fff8e1;
+            color: #f57f17;
+            display: block;
+        }
+        .result {
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+            min-height: 50px;
+        }
+        .invoice-amount {
+            font-weight: bold;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Number Conversion Service (SOAP API)</h1>
+    
+    <div class="converter">
+        <h2>Number to Words Converter</h2>
+        <div class="input-group">
+            <label for="numberInput">Enter a number:</label>
+            <input type="number" id="numberInput" placeholder="e.g., 1234">
+        </div>
+        <div class="buttons">
+            <button id="convertToWords">Convert to Words</button>
+            <button id="clearNumber" class="secondary">Clear</button>
+        </div>
+        <div class="result" id="wordsResult"></div>
+    </div>
+    
+    <div class="converter">
+        <h2>Currency to Words Converter</h2>
+        <div class="input-group">
+            <label for="currencyInput">Enter amount:</label>
+            <input type="number" step="0.01" id="currencyInput" placeholder="e.g., 1234.56">
+        </div>
+        <div class="input-group">
+            <label for="currencyType">Currency:</label>
+            <select id="currencyType">
+                <option value="USD">US Dollars (USD)</option>
+                <option value="EUR">Euros (EUR)</option>
+                <option value="GBP">British Pounds (GBP)</option>
+                <option value="JPY">Japanese Yen (JPY)</option>
+            </select>
+        </div>
+        <div class="buttons">
+            <button id="convertToCurrency">Convert to Currency Words</button>
+            <button id="clearCurrency" class="secondary">Clear</button>
+        </div>
+        <div class="result" id="currencyResult"></div>
+    </div>
+    
+    <div class="converter">
+        <h2>Invoice Example</h2>
+        <div class="input-group">
+            <label for="invoiceAmount">Invoice Amount:</label>
+            <input type="number" step="0.01" id="invoiceAmount" placeholder="e.g., 1250.75">
+        </div>
+        <div class="input-group">
+            <label for="invoiceCurrency">Currency:</label>
+            <select id="invoiceCurrency">
+                <option value="USD">US Dollars (USD)</option>
+                <option value="EUR">Euros (EUR)</option>
+                <option value="GBP">British Pounds (GBP)</option>
+            </select>
+        </div>
+        <div class="buttons">
+            <button id="generateInvoice">Generate Invoice Text</button>
+            <button id="clearInvoice" class="secondary">Clear</button>
+        </div>
+        <div id="invoiceOutput">
+            <p class="invoice-amount">Amount: <span id="invoiceAmountDisplay"></span></p>
+            <p>In words: <span id="invoiceWordsDisplay"></span></p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+    // DOM elements
+    const numberInput = document.getElementById('numberInput');
+    const convertToWordsBtn = document.getElementById('convertToWords');
+    const wordsResult = document.getElementById('wordsResult');
+    const currencyInput = document.getElementById('currencyInput');
+    const currencyType = document.getElementById('currencyType');
+    const convertToCurrencyBtn = document.getElementById('convertToCurrency');
+    const currencyResult = document.getElementById('currencyResult');
+    const invoiceAmount = document.getElementById('invoiceAmount');
+    const invoiceCurrency = document.getElementById('invoiceCurrency');
+    const generateInvoiceBtn = document.getElementById('generateInvoice');
+    const invoiceAmountDisplay = document.getElementById('invoiceAmountDisplay');
+    const invoiceWordsDisplay = document.getElementById('invoiceWordsDisplay');
+
+    // API Configuration with CORS proxy
+    const CORS_PROXY = "https://cors-anywhere.herokuapp.com/";
+    const API_URL = 'https://www.dataaccess.com/webservicesserver/NumberConversion.wso';
+
+    // Improved SOAP request function with better error handling
+    async function makeSoapRequest(action, params) {
+        try {
+            // Construct SOAP request
+            const soapRequest = `<?xml version="1.0" encoding="utf-8"?>
+                <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+                  <soap:Body>
+                    <${action} xmlns="http://www.dataaccess.com/webservicesserver/">
+                      ${Object.entries(params).map(([key, value]) => `<${key}>${value}</${key}>`).join('')}
+                    </${action}>
+                  </soap:Body>
+                </soap:Envelope>`;
+
+            console.log('Sending SOAP request:', soapRequest);
+            
+            const response = await fetch(CORS_PROXY + API_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'text/xml; charset=utf-8',
+                    'SOAPAction': `http://www.dataaccess.com/webservicesserver/${action}`,
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: soapRequest
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const responseText = await response.text();
+            console.log('Raw response:', responseText);
+
+            // Parse the XML response
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(responseText, "text/xml");
+
+            // Check for SOAP Fault
+            const fault = xmlDoc.getElementsByTagName("soap:Fault")[0];
+            if (fault) {
+                const faultString = fault.getElementsByTagName("faultstring")[0]?.textContent || "Unknown SOAP error";
+                throw new Error(faultString);
+            }
+
+            return xmlDoc;
+
+        } catch (error) {
+            console.error('SOAP Request Error:', error);
+            throw new Error(`Service unavailable: ${error.message}`);
+        }
+    }
+
+    // Improved Number to Words Conversion
+    async function numberToWords(number) {
+        try {
+            const xmlDoc = await makeSoapRequest('NumberToWords', { ubiNum: number });
+            
+            // More robust result extraction
+            const resultNodes = xmlDoc.getElementsByTagName("m:NumberToWordsResult") || 
+                              xmlDoc.getElementsByTagName("NumberToWordsResult");
+            
+            if (!resultNodes.length) {
+                throw new Error("No conversion result found in response");
+            }
+            
+            const result = resultNodes[0].textContent;
+            if (!result || result.trim() === "") {
+                throw new Error("Empty conversion result");
+            }
+            
+            return result;
+        } catch (error) {
+            console.error('Conversion failed:', error);
+            throw error;
+        }
+    }
+
+    // Improved Number to Currency Words Conversion
+    async function numberToDollars(number, currency) {
+        try {
+            const xmlDoc = await makeSoapRequest('NumberToDollars', { dNum: number });
+            
+            // More robust result extraction
+            const resultNodes = xmlDoc.getElementsByTagName("m:NumberToDollarsResult") || 
+                              xmlDoc.getElementsByTagName("NumberToDollarsResult");
+            
+            if (!resultNodes.length) {
+                throw new Error("No conversion result found in response");
+            }
+            
+            let result = resultNodes[0].textContent;
+            if (!result || result.trim() === "") {
+                throw new Error("Empty conversion result");
+            }
+
+            // Currency formatting
+            switch(currency) {
+                case 'EUR': return result.replace('dollars', 'euros').replace('cents', 'euro cents');
+                case 'GBP': return result.replace('dollars', 'pounds').replace('cents', 'pence');
+                case 'JPY': return result.replace('dollars', 'yen').replace(' and zero cents', '');
+                default: return result;
+            }
+        } catch (error) {
+            console.error('Conversion failed:', error);
+            throw error;
+        }
+    }
+
+    // Event handlers with improved error display
+    convertToWordsBtn.addEventListener('click', async () => {
+        wordsResult.className = 'result';
+        wordsResult.textContent = 'Converting...';
+        
+        try {
+            if (!numberInput.value) {
+                throw new Error("Please enter a number");
+            }
+            
+            const result = await numberToWords(numberInput.value);
+            wordsResult.textContent = result;
+            wordsResult.className = 'success';
+        } catch (error) {
+            wordsResult.textContent = error.message;
+            wordsResult.className = 'error';
+        }
+    });
+
+    convertToCurrencyBtn.addEventListener('click', async () => {
+        currencyResult.className = 'result';
+        currencyResult.textContent = 'Converting...';
+        
+        try {
+            if (!currencyInput.value) {
+                throw new Error("Please enter an amount");
+            }
+            
+            const result = await numberToDollars(currencyInput.value, currencyType.value);
+            currencyResult.textContent = result;
+            currencyResult.className = 'success';
+        } catch (error) {
+            currencyResult.textContent = error.message;
+            currencyResult.className = 'error';
+        }
+    });
+
+    generateInvoiceBtn.addEventListener('click', async () => {
+        invoiceWordsDisplay.textContent = 'Generating...';
+        
+        try {
+            if (!invoiceAmount.value) {
+                throw new Error("Please enter an invoice amount");
+            }
+            
+            const amount = parseFloat(invoiceAmount.value).toFixed(2);
+            const currency = invoiceCurrency.value;
+            const symbol = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : '£';
+            
+            invoiceAmountDisplay.textContent = `${symbol}${amount}`;
+            
+            const words = await numberToDollars(amount, currency);
+            invoiceWordsDisplay.textContent = words;
+        } catch (error) {
+            invoiceWordsDisplay.textContent = error.message;
+        }
+    });
+
+    // Enter key support
+    [numberInput, currencyInput, invoiceAmount].forEach(input => {
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                if (input === numberInput) convertToWordsBtn.click();
+                else if (input === currencyInput) convertToCurrencyBtn.click();
+                else generateInvoiceBtn.click();
+            }
+        });
+    });
+});
+    </script>
+</body>
+</html>
