@@ -98,13 +98,23 @@
             font-weight: bold;
             margin: 10px 0;
         }
+           .cors-message {
+            background: #e3f2fd;
+            color: #1565c0;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
     <h1>Number Conversion Service (SOAP API)</h1>
-    <a href="https://cors-anywhere.herokuapp.com/corsdemo">
-  <button>Click for temporary access</button>
-</a>
+  <div class="cors-message">
+            <strong>Note:</strong> You need to request temporary access to the demo server:
+            <a href="https://cors-anywhere.herokuapp.com/corsdemo" target="_blank">Click here</a> and then "Request temporary access to the demo server"
+        </div>
+
     <div class="converter">
         <h2>Number to Words Converter</h2>
         <div class="input-group">
